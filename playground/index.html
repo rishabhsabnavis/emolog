@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>emolog — interactive playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #e9eaec;
+    color: #1c1e22;
+    font-family: 'Inter', system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 12px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .ec-body { background: #fff; width: 960px; max-width: 100%; border-radius: 14px;
+             overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+  .ec-chrome-text {
+    background: linear-gradient(180deg,#2b2d31 0%,#55585e 26%,#101113 50%,#6b6e74 70%,#1c1d20 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,.35));
+  }
+  a { color: rgba(15,16,18,.8); text-decoration: none; }
+  a:hover { color: #1c1e22; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .disp { font-family: 'Space Grotesk', sans-serif; }
+  .label { font: 600 11px 'JetBrains Mono', monospace; color: rgba(15,16,18,.6);
+           text-transform: uppercase; letter-spacing: .06em; }
+  .glass { border-radius: 12px; padding: 14px 16px;
+           background: linear-gradient(180deg,#fff,#f2f3f5);
+           border: 1px solid rgba(0,0,0,.08);
+           box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,.04); }
+  .reveal { transition: all .4s cubic-bezier(.2,.7,.3,1); }
+  .tint { transition: color .4s ease; }
+  .preset-btn { font: 500 12px 'Inter', sans-serif; padding: 8px 15px; border-radius: 20px;
+                cursor: pointer; transition: all .25s ease; }
+
+  /* liquid mercury waveform */
+  @keyframes eg-blob { 0% { transform: translate(-50%,-50%); }
+                       100% { transform: translate(-50%, calc(-50% - var(--amp,14px))); } }
+  @keyframes eg-sheen { 0% { transform: translateX(-30%); } 100% { transform: translateX(130%); } }
+  .wf-outer { position: relative; height: 58px; border-radius: 12px; overflow: hidden;
+              background: linear-gradient(180deg,#fafafb,#f0f1f3); border: 1px solid rgba(0,0,0,.07); }
+  .wf-goo { position: absolute; inset: 0; background: #f0f1f3; filter: blur(10px) contrast(9); }
+  .wf-blob { position: absolute; top: 50%; border-radius: 50%; transform: translate(-50%,-50%); }
+  .wf-sheen { position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+              background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+              mix-blend-mode: screen; pointer-events: none; }
+  @media (max-width: 640px) {
+    .row-2 { flex-direction: column; }
+    .pipeline, .replies { grid-template-columns: 1fr !important; }
+    .pipeline .arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ec-body" id="app"><!-- built by JS --></div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const DATA = window.EMOLOG_DATA || { presets: [], benchmark: [], meanLift: 0 };
+  const PRESETS = DATA.presets;
+  const EMOTION_HUE = { angry: 18, sad: 235, happy: 85, neutral: 250, calm: 150,
+                        fearful: 300, surprised: 60, disgusted: 120, uncertain: 250 };
+  const accent = (emotion) => `oklch(52% 0.13 ${EMOTION_HUE[emotion] ?? 250})`;
+
+  const AMP = { high: '20px', medium: '14px', low: '8px' };
+  const DUR = { high: 900, medium: 1300, low: 1900 };
+  const seed = (i) => { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); };
+
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const k in attrs) {
+      if (k === 'style') n.style.cssText = attrs[k];
+      else if (k === 'class') n.className = attrs[k];
+      else if (k === 'html') n.innerHTML = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    }
+    for (const kid of kids) if (kid != null) n.append(kid);
+    return n;
+  };
+
+  let sel = 0, stage = 3, timers = [];
+  const refs = {};
+
+  function build() {
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+
+    // 1. Header
+    app.append(el('div', { style: 'padding:40px 40px 30px;border-bottom:1px solid rgba(0,0,0,.15)' },
+      el('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap' },
+        el('img', { src: 'assets/emolog-logo-clean.png', alt: 'emolog',
+                    style: 'height:52px;width:auto;display:block;object-fit:contain' }),
+        el('div', { style: "display:flex;gap:10px;align-items:center;font:500 12px 'JetBrains Mono',monospace" },
+          el('span', { style: 'padding:8px 14px;border-radius:20px;background:linear-gradient(180deg,#3d4147,#15171a 60%,#4a4e55);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 3px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.18)' }, 'pip install emolog'),
+          el('a', { href: '#' }, 'GitHub'),
+          el('a', { href: '#' }, 'PyPI'))),
+      el('div', { style: "margin-top:14px;font:500 16px/1.5 'Inter',sans-serif;color:rgba(15,16,18,.8);max-width:620px" },
+        'The missing emotional memory layer for voice agents.')));
+
+    // 2. Problem strip
+    app.append(el('div', { class: 'row-2', style: 'padding:26px 40px;border-bottom:1px solid rgba(0,0,0,.07);display:flex;gap:18px;align-items:center;flex-wrap:wrap' },
+      el('div', { style: 'flex:1;min-width:220px' },
+        el('div', { class: 'label', style: 'margin-bottom:8px' }, 'ASR hears'),
+        el('div', { class: 'ec-chrome-text disp', style: 'font-weight:600;font-size:20px' }, '"I\'m fine."')),
+      el('div', { style: "font:400 22px 'Inter',sans-serif;color:rgba(15,16,18,.35)" }, '→'),
+      el('div', { style: 'flex:1;min-width:220px' },
+        el('div', { class: 'label', style: 'margin-bottom:8px' }, 'What actually happened'),
+        el('div', { style: "font:500 15px/1.4 'Inter',sans-serif;color:rgba(15,16,18,.85)" },
+          "Clipped, flat, irritated. The transcript can't carry any of that — emolog reads the audio before it's gone."))));
+
+    // 3. Preset picker
+    const btnRow = el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' });
+    refs.buttons = PRESETS.map((p, i) => {
+      const b = el('button', { class: 'preset-btn' }, p.tag);
+      b.onclick = () => selectPreset(i);
+      b.onmouseenter = () => { if (i !== sel) b.style.borderColor = accent(p.emotion); };
+      b.onmouseleave = () => { if (i !== sel) b.style.borderColor = 'rgba(0,0,0,.14)'; };
+      btnRow.append(b);
+      return b;
+    });
+    app.append(el('div', { style: 'padding:26px 40px 8px' },
+      el('div', { class: 'label', style: 'margin-bottom:12px' }, 'Pick a line, watch emolog work'),
+      btnRow));
+
+    // 4. Transcript card
+    refs.transcript = el('div', { class: 'glass disp', style: "font-weight:500;font-size:16px;line-height:1.5" });
+    app.append(el('div', { style: 'padding:18px 40px 0' }, refs.transcript));
+
+    // 5. Waveform
+    const goo = el('div', { class: 'wf-goo' });
+    refs.blobs = Array.from({ length: 12 }, (_, i) => {
+      const size = 46 + Math.round(seed(i + 20) * 16);
+      const gray = 40 + Math.round(seed(i + 5) * 30);
+      const b = el('div', { class: 'wf-blob' });
+      b.style.left = (i / 11) * 100 + '%';
+      b.style.width = size + 'px';
+      b.style.height = size + 'px';
+      b.style.background = `rgb(${gray},${gray},${gray})`;
+      goo.append(b);
+      return b;
+    });
+    refs.sheen = el('div', { class: 'wf-sheen' });
+    refs.waveform = el('div', { class: 'wf-outer' }, goo, refs.sheen);
+    app.append(el('div', { style: 'padding:16px 40px 0' }, refs.waveform));
+
+    // 6. Pipeline
+    const arrow = () => el('div', { class: 'arrow', style: "align-self:center;font:22px 'Inter',sans-serif;opacity:.25" }, '→');
+    const card = (title, bodyKids) => { const c = el('div', { class: 'glass reveal' },
+      el('div', { style: "font:600 10px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;opacity:.5;margin-bottom:8px" }, title),
+      ...bodyKids); return c; };
+
+    refs.emotion = el('div', { class: 'disp tint', style: 'font-weight:700;font-size:18px;margin-bottom:4px' });
+    refs.confidence = el('div', { style: "font:500 12px 'JetBrains Mono',monospace;opacity:.65" });
+    refs.av = el('div', { style: "font:400 12px 'Inter',sans-serif;opacity:.6;margin-top:8px" });
+    refs.analyzerCard = card('ParalinguisticAnalyzer', [refs.emotion, refs.confidence, refs.av]);
+
+    refs.convoMood = el('div', { class: 'disp tint', style: 'font-weight:700;font-size:15px;margin-bottom:4px' });
+    refs.convoDesc = el('div', { style: "font:400 12px 'Inter',sans-serif;opacity:.65" });
+    refs.trackerCard = card('ConversationTracker', [refs.convoMood, refs.convoDesc]);
+
+    refs.ttsStyle = el('div', { class: 'disp tint', style: 'font-weight:700;font-size:15px;margin-bottom:4px' });
+    refs.ttsMeta = el('div', { style: "font:400 12px 'Inter',sans-serif;opacity:.65" });
+    refs.outputCard = card('EmologMiddleware', [refs.ttsStyle, refs.ttsMeta]);
+
+    app.append(el('div', { class: 'pipeline', style: 'padding:22px 40px 8px;display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch' },
+      refs.analyzerCard, arrow(), refs.trackerCard, arrow(), refs.outputCard));
+
+    // 7. Injected system prompt
+    refs.context = el('span', { class: 'tint' });
+    app.append(el('div', { style: 'padding:18px 40px 8px' },
+      el('div', { class: 'label', style: 'margin-bottom:10px' }, 'Injected system prompt'),
+      el('div', { style: "font:13px/1.6 'JetBrains Mono',monospace;background:linear-gradient(180deg,#fff,#f2f3f5);border-radius:12px;padding:16px 18px;white-space:pre-wrap;border:1px solid rgba(0,0,0,.08);box-shadow:inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.04)" },
+        'system: "You are a helpful voice assistant."\n', refs.context)));
+
+    // 8. Before / after replies
+    refs.baselineReply = el('div', { style: "font:400 14px/1.5 'Inter',sans-serif;opacity:.75" });
+    refs.awareLabel = el('div', { class: 'tint', style: "font:600 10px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px" }, 'with emolog');
+    refs.awareReply = el('div', { style: "font:500 14px/1.5 'Inter',sans-serif" });
+    app.append(el('div', { class: 'replies', style: 'padding:18px 40px 26px;display:grid;grid-template-columns:1fr 1fr;gap:14px' },
+      el('div', { class: 'glass' },
+        el('div', { style: "font:600 10px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;opacity:.45;margin-bottom:8px" }, 'without emolog'),
+        refs.baselineReply),
+      el('div', { class: 'glass' }, refs.awareLabel, refs.awareReply)));
+
+    // 9. Benchmark
+    const benchWrap = el('div', { style: 'padding:26px 40px;border-top:1px solid rgba(0,0,0,.08)' },
+      el('div', { class: 'label', style: 'margin-bottom:16px' }, 'Benchmark: emolog-aware vs baseline agent'));
+    DATA.benchmark.forEach((d) => {
+      const track = el('div', { style: 'height:9px;border-radius:6px;background:rgba(0,0,0,.06);position:relative;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)' },
+        el('div', { style: `position:absolute;left:0;top:0;bottom:0;width:${d.baseline*100}%;background:rgba(0,0,0,.18);border-radius:6px` }),
+        el('div', { style: `position:absolute;left:0;top:0;bottom:0;width:${d.emolog*100}%;background:linear-gradient(90deg,#3d4147,#15171a 60%,#4a4e55);border-radius:6px` }));
+      benchWrap.append(el('div', { style: 'margin-bottom:14px' },
+        el('div', { style: "display:flex;justify-content:space-between;font:500 12px 'Inter',sans-serif;color:rgba(15,16,18,.85);margin-bottom:6px" },
+          el('span', {}, d.name),
+          el('span', {}, `${Math.round(d.emolog*100)}% vs ${Math.round(d.baseline*100)}%`)),
+        track));
+    });
+    benchWrap.append(el('div', { style: "font:400 11px/1.5 'Inter',sans-serif;color:rgba(15,16,18,.6);margin-top:6px" },
+      'Real run of the included eval harness · 6 scenarios · 4 scoring dimensions.'));
+    app.append(benchWrap);
+
+    // 10. Footer
+    app.append(el('div', { style: 'padding:22px 40px 32px;border-top:1px solid rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px' },
+      el('div', { style: "font:400 12px/1.5 'Inter',sans-serif;color:rgba(15,16,18,.65);max-width:560px" ,
+        html: 'Heuristic backend ships with numpy only; HuBERT inference needs <span class="mono">emolog[full]</span>. Never calls an LLM or TTS API — model-agnostic by design.' }),
+      el('div', { style: "font:500 12px 'JetBrains Mono',monospace;color:rgba(15,16,18,.7)" }, 'MIT License')));
+  }
+
+  function setContent(p) {
+    const line = accent(p.emotion);
+    // Preset buttons
+    refs.buttons.forEach((b, i) => {
+      const active = i === sel, bp = PRESETS[i], bl = accent(bp.emotion);
+      b.style.border = active ? `1px solid ${bl}` : '1px solid rgba(0,0,0,.14)';
+      b.style.background = active ? 'linear-gradient(180deg,#3d4147,#15171a 60%,#4a4e55)' : 'linear-gradient(180deg,#fff,#f2f3f5)';
+      b.style.color = active ? '#fff' : 'rgba(28,30,34,.75)';
+      b.style.boxShadow = active ? 'inset 0 1px 0 rgba(255,255,255,.2), 0 2px 6px rgba(0,0,0,.18)' : 'none';
+    });
+    refs.transcript.textContent = `"${p.transcript}"`;
+    refs.emotion.textContent = p.emotion;
+    refs.confidence.textContent = `${p.confidence}% confidence`;
+    refs.av.textContent = `arousal: ${p.arousal} · valence: ${p.valence}`;
+    refs.convoMood.textContent = p.convoMood;
+    refs.convoDesc.textContent = p.convoDesc;
+    refs.ttsStyle.textContent = p.tts.style;
+    refs.ttsMeta.textContent = `rate ${p.tts.rate} · stability ${p.tts.stability}`;
+    refs.context.textContent = p.contextString;
+    refs.baselineReply.textContent = p.baselineReply;
+    refs.awareReply.textContent = p.awareReply;
+
+    // Waveform amplitude/speed by arousal
+    const amp = AMP[p.arousal] || '14px', dur = DUR[p.arousal] || 1300;
+    refs.blobs.forEach((b, i) => {
+      b.style.setProperty('--amp', amp);
+      b.dataset.dur = dur;
+      b.dataset.phase = Math.round(seed(i) * dur);
+    });
+    return line;
+  }
+
+  function applyStage(p) {
+    const line = accent(p.emotion);
+    const cards = [[refs.analyzerCard, 1], [refs.trackerCard, 2], [refs.outputCard, 3]];
+    cards.forEach(([c, s]) => {
+      const on = stage >= s;
+      c.style.opacity = on ? '1' : '0.45';
+      c.style.transform = on ? 'translateY(0) scale(1)' : 'translateY(4px) scale(0.99)';
+    });
+    refs.emotion.style.color = stage >= 1 ? line : '#1c1e22';
+    refs.convoMood.style.color = stage >= 2 ? line : '#1c1e22';
+    refs.ttsStyle.style.color = stage >= 3 ? line : '#1c1e22';
+    refs.awareLabel.style.color = stage >= 3 ? line : 'rgba(28,30,34,.6)';
+    refs.context.style.color = stage >= 3 ? line : 'rgba(28,30,34,.35)';
+
+    // Waveform animates only once a preset is active (stage >= 1).
+    const active = stage >= 1;
+    refs.blobs.forEach((b) => {
+      b.style.animation = active
+        ? `eg-blob ${b.dataset.dur}ms ease-in-out ${b.dataset.phase}ms infinite alternate` : 'none';
+    });
+    refs.sheen.style.animation = active ? 'eg-sheen 2.6s ease-in-out infinite' : 'none';
+  }
+
+  function selectPreset(i) {
+    timers.forEach(clearTimeout); timers = [];
+    sel = i; stage = 0;
+    const p = PRESETS[i];
+    setContent(p);
+    applyStage(p);
+    timers.push(setTimeout(() => { stage = 1; applyStage(p); }, 150));
+    timers.push(setTimeout(() => { stage = 2; applyStage(p); }, 600));
+    timers.push(setTimeout(() => { stage = 3; applyStage(p); }, 1050));
+  }
+
+  build();
+  if (PRESETS.length) {
+    sel = 0; stage = 3;                 // default preset shown fully resolved
+    setContent(PRESETS[0]);
+    applyStage(PRESETS[0]);
+  }
+})();
+</script>
+</body>
+</html>

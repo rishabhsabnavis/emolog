@@ -6,8 +6,11 @@ EmologMiddleware`) animate — showing the detected emotion, the injected system
 prompt, the TTS style hint, and a baseline-vs-emolog reply comparison, then a
 benchmark section.
 
-Built from the `design_handoff_emolog_playground` Cream design, recreated as a
-self-contained page (no design-tool runtime, no framework, no build step).
+Built from the `design_handoff_emologUPDATE` design (the dark, editorial
+`EmologCream.dc.html` direction: spotlight hero with a "listening" sonar-ring
+device, an oversized italic wordmark, a single gold accent, and a staggered
+pipeline reveal), recreated as a self-contained page — no design-tool runtime,
+no framework, no build step.
 
 ## Run it
 
@@ -39,13 +42,27 @@ emolog SDK**:
 | transcript, baseline reply, aware reply | illustrative copy (the SDK reads audio; it does not transcribe or generate LLM replies) |
 
 The sample audio is synthesized (a tone shaped to the target emotion's prosody),
-standing in for a real ASR front-end. The "Angry, escalating" preset drives four
+standing in for a real ASR front-end. The "angry, escalating" preset drives four
 real turns through the tracker, which is why it shows a genuine worsening /
 escalating arc with a shift alert and a CAUTION flag.
+
+Note: the handoff's `RAW_PRESETS` ship hardcoded numbers (e.g. angry at 88%) and
+illustrative benchmark scores. This page intentionally keeps the design's copy
+but sources every number from the real SDK instead, so the confidence values and
+benchmark bars here differ from the mockup — they're live, not decorative.
+
+## Interaction
+
+Clicking a preset runs a staggered reveal (per the handoff timing): the emotion
+card tints gold at +150 ms, the conversation-arc card at +600 ms, and the
+voice-tone card plus the injected-context text at +1050 ms. The hero device runs
+an always-on sonar-ring "listening" animation, independent of preset selection.
 
 ## Files
 
 - `index.html` — the page (vanilla JS/CSS, fonts via Google Fonts CDN).
 - `generate_data.py` — runs the SDK to produce `data.js`. Re-run after SDK changes.
 - `data.js` — auto-generated; do not edit by hand.
-- `assets/emolog-logo-clean.png` — the wordmark logo.
+- `assets/emolog-logo-clean.png` — the old liquid-mercury wordmark logo. The
+  current design renders its "emolog" wordmark as live CSS text, so this asset is
+  no longer referenced by the page; kept for reference.

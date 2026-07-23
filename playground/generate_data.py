@@ -129,7 +129,7 @@ def _convo_labels(state):
 _PRESET_SPECS = [
     {
         "id": "sarcastic",
-        "tag": 'Flat "I\'m fine."',
+        "tag": 'flat "I\'m fine."',
         "transcript": "I'm fine.",
         "turns": [(_clipped, "I'm fine.")],
         "baselineReply": "Great, glad to hear it! Is there anything else I can help you with today?",
@@ -137,7 +137,7 @@ _PRESET_SPECS = [
     },
     {
         "id": "billing",
-        "tag": "Angry, escalating",
+        "tag": "angry, escalating",
         "transcript": "This is the THIRD time I've called about this.",
         # neutral x3 then angry -> real worsening valence, escalating arousal,
         # a neutral->angry shift on the final turn, and a CAUTION flag.
@@ -152,7 +152,7 @@ _PRESET_SPECS = [
     },
     {
         "id": "sad",
-        "tag": "Quiet, drained",
+        "tag": "quiet, drained",
         "transcript": "I don't really know what to do anymore.",
         "turns": [
             (_sad, "It's been a really hard week."),
@@ -163,7 +163,7 @@ _PRESET_SPECS = [
     },
     {
         "id": "happy",
-        "tag": "Delighted",
+        "tag": "delighted",
         "transcript": "Oh my gosh, it arrived already?! That's amazing!",
         "turns": [(_happy, "Oh my gosh, it arrived already?! That's amazing!")],
         "baselineReply": "Your order has been marked as delivered. Please rate your experience below.",
@@ -171,7 +171,7 @@ _PRESET_SPECS = [
     },
     {
         "id": "neutral",
-        "tag": "Just a question",
+        "tag": "just a question",
         "transcript": "Can you check my account balance?",
         "turns": [(_neutral, "Can you check my account balance?")],
         "baselineReply": "Sure, one moment while I pull that up.",

@@ -3,7 +3,7 @@ window.EMOLOG_DATA = {
   "presets": [
     {
       "id": "sarcastic",
-      "tag": "Flat \"I'm fine.\"",
+      "tag": "flat \"I'm fine.\"",
       "transcript": "I'm fine.",
       "emotion": "angry",
       "confidence": 50,
@@ -22,7 +22,7 @@ window.EMOLOG_DATA = {
     },
     {
       "id": "billing",
-      "tag": "Angry, escalating",
+      "tag": "angry, escalating",
       "transcript": "This is the THIRD time I've called about this.",
       "emotion": "angry",
       "confidence": 76,
@@ -41,7 +41,7 @@ window.EMOLOG_DATA = {
     },
     {
       "id": "sad",
-      "tag": "Quiet, drained",
+      "tag": "quiet, drained",
       "transcript": "I don't really know what to do anymore.",
       "emotion": "sad",
       "confidence": 40,
@@ -60,7 +60,7 @@ window.EMOLOG_DATA = {
     },
     {
       "id": "happy",
-      "tag": "Delighted",
+      "tag": "delighted",
       "transcript": "Oh my gosh, it arrived already?! That's amazing!",
       "emotion": "happy",
       "confidence": 50,
@@ -79,7 +79,7 @@ window.EMOLOG_DATA = {
     },
     {
       "id": "neutral",
-      "tag": "Just a question",
+      "tag": "just a question",
       "transcript": "Can you check my account balance?",
       "emotion": "neutral",
       "confidence": 45,

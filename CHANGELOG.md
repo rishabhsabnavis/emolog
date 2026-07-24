@@ -5,6 +5,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed — BREAKING
+
+- Renamed the distribution and the import package from `emolog` to
+  `emologcontext`: `pip install emologcontext`, `from emologcontext import
+  EmologMiddleware`. An unrelated project has held `emolog` on PyPI since
+  2025-08-12, and it ships its own `emolog/` module — so the old name was both
+  unpublishable and an import collision for anyone who had both installed.
+  Class names (`EmologMiddleware`, `ParalinguisticAnalyzer`,
+  `ConversationTracker`) and the project's name are unchanged. Nothing was ever
+  published under `emolog`, so no existing installs break.
+
 ### Fixed
 
 - `ConversationTracker` scored most of the emotion taxonomy as neutral. Its

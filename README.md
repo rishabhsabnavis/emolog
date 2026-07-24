@@ -1,9 +1,9 @@
-# emolog
+# emologcontext
 
 > **The missing emotional memory layer for voice agents.**
 
 [![tests](https://github.com/rishabhsabnavis/emolog/actions/workflows/test.yml/badge.svg)](https://github.com/rishabhsabnavis/emolog/actions/workflows/test.yml)
-[![PyPI](https://img.shields.io/pypi/v/emolog.svg)](https://pypi.org/project/emolog/)
+[![PyPI](https://img.shields.io/pypi/v/emologcontext.svg)](https://pypi.org/project/emologcontext/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <!-- 10. Top-of-README before/after demo GIF/video goes here once recorded. -->
@@ -54,9 +54,15 @@ Run it yourself: `python examples/demo_before_after.py`.
 ## Install
 
 ```bash
-pip install emolog          # base: heuristic backend, numpy only
-pip install emolog[full]    # adds torch/transformers for real HuBERT inference
+pip install emologcontext          # base: heuristic backend, numpy only
+pip install emologcontext[full]    # adds torch/transformers for real HuBERT inference
 ```
+
+The package is `emologcontext` on PyPI and imports as `emologcontext`. An
+unrelated project already owns the name `emolog` there, so `pip install emolog`
+gets you someone else's terminal emotion-logging tool — and because it ships its
+own `emolog/` module, installing both into one environment breaks both. "emolog"
+remains the name of this project; only the install and import path differ.
 
 The base install has one dependency (numpy) and runs the prosody-only heuristic
 backend — no model download, no network. Use `[full]` when you want real model
@@ -66,7 +72,7 @@ downloads weights on first use.
 ## Quickstart
 
 ```python
-from emolog import EmologMiddleware
+from emologcontext import EmologMiddleware
 middleware = EmologMiddleware()
 messages = middleware.inject(audio, sample_rate, transcription, messages)
 ```
@@ -149,8 +155,8 @@ scoring rubric, not a specific production LLM. Pass your own model-backed
 - The heuristic backend is approximate. It infers emotion from prosody alone,
   and its confidence scores run low (0.35–0.50 is typical); below the 0.35
   threshold the label becomes `"uncertain"` rather than a guess.
-- The HuBERT backend needs `pip install emolog[full]` plus a model download on
-  first run, so the base install is the only zero-setup path.
+- The HuBERT backend needs `pip install emologcontext[full]` plus a model
+  download on first run, so the base install is the only zero-setup path.
 - Prosody heuristics — speaking-rate bands, energy thresholds, the pitch proxy
   — are tuned on English. They may not transfer cleanly to tonal or other
   non-English speech yet.

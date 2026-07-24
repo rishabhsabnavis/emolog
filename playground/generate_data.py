@@ -33,7 +33,7 @@ import numpy as np
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
-from emolog import EmologMiddleware  # noqa: E402
+from emologcontext import EmologMiddleware  # noqa: E402
 from benchmark.eval_harness import (  # noqa: E402
     SCENARIOS,
     BenchmarkSuite,

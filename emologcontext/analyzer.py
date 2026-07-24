@@ -194,7 +194,7 @@ class ParalinguisticAnalyzer:
         """The "whisper" backend classifies via a pure-prosody heuristic that
         needs only numpy. Whisper itself is loaded lazily *only if installed*,
         for optional on-device transcription — its absence is NOT fatal, so
-        `pip install emolog` (numpy only) + backend="whisper" works out of the
+        `pip install emologcontext` (numpy only) + backend="whisper" works out of the
         box. (Deliberate deviation from the spec's hard ImportError, to honor
         the README's "heuristic backend runs on the base install" promise.)"""
         self._whisper_model = None

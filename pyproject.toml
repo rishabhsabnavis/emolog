@@ -1,5 +1,5 @@
 [project]
-name = "emolog"
+name = "emologcontext"
 version = "0.1.0"
 description = "The missing emotional memory layer for voice agents."
 readme = "README.md"
@@ -25,14 +25,14 @@ Issues = "https://github.com/rishabhsabnavis/emolog/issues"
 [project.optional-dependencies]
 full    = ["torch>=2.0", "torchaudio>=2.0", "transformers>=4.35"]
 whisper = ["openai-whisper>=20231117"]
-dev     = ["pytest>=7", "emolog[full]"]
+dev     = ["pytest>=7", "emologcontext[full]"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["emolog"]
+packages = ["emologcontext"]
 
 [tool.hatch.build.targets.sdist]
 # The playground's logo asset is a 2.2 MB PNG that the current page no longer

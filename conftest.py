@@ -1,4 +1,4 @@
-"""Ensure the project root is importable so tests can reach emolog and benchmark."""
+"""Ensure the project root is importable so tests can reach emologcontext and benchmark."""
 
 import os
 import sys

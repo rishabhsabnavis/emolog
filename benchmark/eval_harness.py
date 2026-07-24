@@ -27,7 +27,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Callable, Optional
 
-from emolog.analyzer import _EMOTION_AXES
+from emologcontext.analyzer import _EMOTION_AXES
 
 PASS_THRESHOLD = 0.6
 

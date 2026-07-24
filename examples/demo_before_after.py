@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from emolog import EmologMiddleware
+from emologcontext import EmologMiddleware
 
 SR = 16000
 BASE_SYSTEM_PROMPT = "You are a helpful customer support assistant."

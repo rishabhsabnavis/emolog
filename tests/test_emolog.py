@@ -1,9 +1,9 @@
-"""Test suite for emolog.
+"""Test suite for emolog (importable as `emologcontext`).
 
-The 25 tests required by CLAUDE.md "tests/test_emolog.py", covering prosody
+The 25 tests required by CLAUDE.md "tests/test_emolog.py" — covering prosody
 extraction, arousal/valence mapping, context-string formatting, the tracker,
-middleware injection, and the benchmark harness. All are implemented; none
-skip.
+middleware injection, and the benchmark harness — plus three taxonomy-coverage
+tests, 28 in total. All are implemented; none skip.
 """
 
 import numpy as np
@@ -22,7 +22,7 @@ def _tone(freq=150.0, dur=3.0, amp=0.3, sr=SR):
 
 def _make_result(emotion, confidence=0.9, prosody=None):
     """Build an EmotionResult with fabricated prosody for tracker/context tests."""
-    from emolog.analyzer import (
+    from emologcontext.analyzer import (
         EmotionResult,
         ProsodyFeatures,
         _estimate_arousal,
@@ -51,7 +51,7 @@ def _make_result(emotion, confidence=0.9, prosody=None):
 # --------------------------------------------------------------------------- #
 class TestProsodyExtraction:
     def test_returns_prosody_features(self):
-        from emolog.analyzer import ProsodyFeatures, _extract_prosody
+        from emologcontext.analyzer import ProsodyFeatures, _extract_prosody
 
         p = _extract_prosody(_tone(), SR, None)
         assert isinstance(p, ProsodyFeatures)
@@ -66,20 +66,20 @@ class TestProsodyExtraction:
             assert isinstance(value, float)
 
     def test_high_energy_audio(self):
-        from emolog.analyzer import _extract_prosody
+        from emologcontext.analyzer import _extract_prosody
 
         loud = _extract_prosody(_tone(amp=0.5), SR, None)
         quiet = _extract_prosody(_tone(amp=0.02), SR, None)
         assert loud.energy_db > quiet.energy_db
 
     def test_transcription_improves_rate_estimate(self):
-        from emolog.analyzer import _extract_prosody
+        from emologcontext.analyzer import _extract_prosody
 
         p = _extract_prosody(_tone(dur=3.0), SR, "one two three four five")
         assert 1.4 < p.speaking_rate_wps < 2.0  # 5 words / 3 s ≈ 1.67
 
     def test_silence_in_audio(self):
-        from emolog.analyzer import _extract_prosody
+        from emologcontext.analyzer import _extract_prosody
 
         audio = np.concatenate(
             [_tone(dur=1.0, amp=0.3), np.zeros(int(2.0 * SR), dtype=np.float32)]
@@ -90,21 +90,21 @@ class TestProsodyExtraction:
 
 class TestArousalValence:
     def test_angry_is_high_arousal_negative_valence(self):
-        from emolog.analyzer import ProsodyFeatures, _estimate_arousal, _estimate_valence
+        from emologcontext.analyzer import ProsodyFeatures, _estimate_arousal, _estimate_valence
 
         p = ProsodyFeatures(3.0, -20.0, 0.0, 150.0, 0.0, 0.0)
         assert _estimate_arousal("angry", p) == "high"
         assert _estimate_valence("angry") == "negative"
 
     def test_calm_is_low_arousal_positive_valence(self):
-        from emolog.analyzer import ProsodyFeatures, _estimate_arousal, _estimate_valence
+        from emologcontext.analyzer import ProsodyFeatures, _estimate_arousal, _estimate_valence
 
         p = ProsodyFeatures(2.0, -50.0, 0.0, 120.0, 0.0, 0.0)
         assert _estimate_arousal("calm", p) == "low"
         assert _estimate_valence("calm") == "positive"
 
     def test_neutral_valence(self):
-        from emolog.analyzer import _estimate_valence
+        from emologcontext.analyzer import _estimate_valence
 
         assert _estimate_valence("neutral") == "neutral"
 
@@ -120,7 +120,7 @@ class TestContextString:
         assert "unclear" in _make_result("uncertain", 0.2).context_string
 
     def test_high_energy_description(self):
-        from emolog.analyzer import ProsodyFeatures
+        from emologcontext.analyzer import ProsodyFeatures
 
         loud = ProsodyFeatures(3.0, -12.0, 0.0, 150.0, 0.0, 0.0)  # -12 dB -> high
         assert "high" in _make_result("angry", 0.9, loud).context_string
@@ -133,7 +133,7 @@ class TestContextString:
 
 class TestConversationTracker:
     def test_single_turn(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker()
         state = tracker.update(_make_result("neutral"))
@@ -144,7 +144,7 @@ class TestConversationTracker:
         assert state.shift_detected is False
 
     def test_multi_turn_trend(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker()
         for emotion in ["neutral", "neutral", "sad", "angry", "angry"]:
@@ -152,7 +152,7 @@ class TestConversationTracker:
         assert state.valence_trend == "worsening"
 
     def test_shift_detection(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker()
         tracker.update(_make_result("neutral"))
@@ -162,7 +162,7 @@ class TestConversationTracker:
         assert "angry" in state.shift_description
 
     def test_no_shift_same_emotion(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker()
         tracker.update(_make_result("neutral"))
@@ -170,7 +170,7 @@ class TestConversationTracker:
         assert state.shift_detected is False
 
     def test_reset_clears_history(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker()
         tracker.update(_make_result("angry"))
@@ -179,7 +179,7 @@ class TestConversationTracker:
         assert tracker.turn_count == 0
 
     def test_window_limit(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker(window=3)
         for _ in range(10):
@@ -187,7 +187,7 @@ class TestConversationTracker:
         assert tracker.turn_count == 3
 
     def test_conversation_context_string_produced(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         tracker = ConversationTracker()
         state = tracker.update(_make_result("angry"))
@@ -198,7 +198,7 @@ class TestConversationTracker:
 
 def _middleware_with_fake_analyzer(monkeypatch, emotion="angry"):
     """Build an EmologMiddleware whose analyzer is a stub, so no model loads."""
-    import emolog.middleware as mw
+    import emologcontext.middleware as mw
 
     class _FakeAnalyzer:
         def __init__(self, *args, **kwargs):
@@ -247,7 +247,7 @@ class TestMiddlewareInjection:
         assert all(isinstance(v, str) for v in hint.values())
 
     def test_tts_style_hint_no_state(self):
-        import emolog.middleware as mw
+        import emologcontext.middleware as mw
 
         # No process() call -> last_conversation_state is None -> defaults.
         middleware = mw.EmologMiddleware.__new__(mw.EmologMiddleware)
@@ -266,16 +266,16 @@ class TestTaxonomyCoverage:
     `disgusted`'s arousal) silently scored as neutral."""
 
     def test_tracker_scores_cover_whole_taxonomy(self):
-        from emolog.analyzer import _EMOTION_AXES
-        from emolog.tracker import _AROUSAL_SCORE, _VALENCE_SCORE
+        from emologcontext.analyzer import _EMOTION_AXES
+        from emologcontext.tracker import _AROUSAL_SCORE, _VALENCE_SCORE
 
         for label in _EMOTION_AXES:
             assert label in _VALENCE_SCORE, f"{label} missing from _VALENCE_SCORE"
             assert label in _AROUSAL_SCORE, f"{label} missing from _AROUSAL_SCORE"
 
     def test_every_shipping_label_resolves_to_a_tts_style(self):
-        from emolog.analyzer import EMOTION_LABELS
-        from emolog.middleware import _TTS_STYLE, _style_for
+        from emologcontext.analyzer import EMOTION_LABELS
+        from emologcontext.middleware import _TTS_STYLE, _style_for
 
         for label in EMOTION_LABELS:
             stability, style, rate, description = _style_for(label)
@@ -286,7 +286,7 @@ class TestTaxonomyCoverage:
         assert _style_for("contempt") != _TTS_STYLE["neutral"]
 
     def test_activated_distress_gets_de_escalation_guidance(self):
-        from emolog.tracker import ConversationTracker
+        from emologcontext.tracker import ConversationTracker
 
         # `frustrated` is in the taxonomy but was absent from the old tables,
         # so a frustrated caller used to read as "mixed" with no guidance.

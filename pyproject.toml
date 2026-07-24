@@ -33,3 +33,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["emolog"]
+
+[tool.hatch.build.targets.sdist]
+# The playground's logo asset is a 2.2 MB PNG that the current page no longer
+# references (it renders the wordmark as CSS text). Shipping it made the sdist
+# ~50x larger than the code it wraps.
+exclude = ["playground/assets"]

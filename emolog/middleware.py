@@ -10,7 +10,7 @@ from typing import Optional
 
 import numpy as np
 
-from .analyzer import EmotionResult, ParalinguisticAnalyzer
+from .analyzer import _EMOTION_AXES, EmotionResult, ParalinguisticAnalyzer
 from .tracker import ConversationState, ConversationTracker
 
 # emotion -> (stability, style, speaking_rate, description)
@@ -34,6 +34,33 @@ _TTS_STYLE = {
     "uncertain": (0.50, "natural", 1.00,
                   "Speak naturally."),
 }
+
+# Taxonomy family -> which _TTS_STYLE entry to borrow when a label has none of
+# its own. Without this, every label outside the nine above fell through to
+# "neutral" — so a caller detected as `frustrated` got rate 1.0 and "Speak
+# naturally.", i.e. the agent answered an angry-adjacent user in its default
+# voice. Exact label wins; family is the fallback. This mirrors `_bucket()` in
+# benchmark/eval_harness.py, which already resolves labels the same way.
+_STYLE_BY_FAMILY = {
+    "negative-high": "angry",
+    "negative-low": "sad",
+    "positive-high": "happy",
+    "positive-low": "calm",
+    "neutral": "neutral",
+    "surprise": "surprised",
+    "engaged": "surprised",
+    "disengaged": "calm",
+}
+
+
+def _style_for(emotion: str) -> tuple[float, str, float, str]:
+    """Resolve an emotion to a TTS style: exact label, then taxonomy family,
+    then neutral for a label from outside the taxonomy altogether."""
+    if emotion in _TTS_STYLE:
+        return _TTS_STYLE[emotion]
+    axes = _EMOTION_AXES.get(emotion)
+    family = axes[2] if axes is not None else "neutral"
+    return _TTS_STYLE[_STYLE_BY_FAMILY.get(family, "neutral")]
 
 
 class EmologMiddleware:
@@ -142,9 +169,7 @@ class EmologMiddleware:
             }
 
         state = self.last_conversation_state
-        stability, style, rate, description = _TTS_STYLE.get(
-            state.current_emotion, _TTS_STYLE["neutral"]
-        )
+        stability, style, rate, description = _style_for(state.current_emotion)
 
         if (
             state.arousal_trend == "escalating"

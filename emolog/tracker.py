@@ -10,17 +10,29 @@ import collections
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .analyzer import EmotionResult
+from .analyzer import _EMOTION_AXES, EmotionResult
 
-_VALENCE_SCORE = {
-    "happy": 1.0, "calm": 0.8, "neutral": 0.5, "surprised": 0.5,
-    "uncertain": 0.5, "fearful": 0.2, "sad": 0.1, "disgusted": 0.0, "angry": 0.0,
-}
+# Derived from the analyzer's _EMOTION_AXES table rather than restated here.
+#
+# These were previously hand-written nine-label dicts, and they had drifted from
+# the taxonomy the analyzer can actually emit. Every label present in
+# _EMOTION_AXES but absent from the dicts (`frustrated`, `distressed`,
+# `anxious`, `contempt`, `disappointed`, …) fell through to the 0.5/0.4 default
+# — numerically identical to `neutral`. A caller who stayed *frustrated* for
+# three turns therefore reported "Overall conversation mood has been mixed" with
+# no de-escalation guidance at all, which is precisely the case emolog exists to
+# catch. `disgusted` was also missing from the arousal dict outright, despite
+# being a label the shipped heuristic backend emits.
+#
+# Deriving both tables keeps the tracker in step with the taxonomy as it grows,
+# which is the stated design intent in analyzer.py's module docstring.
+_VALENCE_SCORE = {label: axes[0] for label, axes in _EMOTION_AXES.items()}
+_AROUSAL_SCORE = {label: axes[1] for label, axes in _EMOTION_AXES.items()}
 
-_AROUSAL_SCORE = {
-    "angry": 1.0, "fearful": 0.9, "happy": 0.8, "surprised": 0.7,
-    "neutral": 0.4, "uncertain": 0.4, "calm": 0.2, "sad": 0.2,
-}
+# Fallback for a label outside the taxonomy entirely — e.g. a HuBERT checkpoint
+# whose id2label set does not match ours. Same coordinates as `neutral`.
+_DEFAULT_VALENCE = 0.5
+_DEFAULT_AROUSAL = 0.4
 
 
 @dataclass
@@ -64,8 +76,8 @@ class ConversationTracker:
 
     def _compute_state(self) -> ConversationState:
         history = list(self._history)
-        valences = [_VALENCE_SCORE.get(r.emotion, 0.5) for r in history]
-        arousals = [_AROUSAL_SCORE.get(r.emotion, 0.4) for r in history]
+        valences = [_VALENCE_SCORE.get(r.emotion, _DEFAULT_VALENCE) for r in history]
+        arousals = [_AROUSAL_SCORE.get(r.emotion, _DEFAULT_AROUSAL) for r in history]
 
         n = len(history)
         mean_valence = sum(valences) / n
@@ -99,8 +111,8 @@ class ConversationTracker:
         shift_description = ""
         if n >= 2:
             prev, curr = history[-2], history[-1]
-            prev_v = _VALENCE_SCORE.get(prev.emotion, 0.5)
-            curr_v = _VALENCE_SCORE.get(curr.emotion, 0.5)
+            prev_v = _VALENCE_SCORE.get(prev.emotion, _DEFAULT_VALENCE)
+            curr_v = _VALENCE_SCORE.get(curr.emotion, _DEFAULT_VALENCE)
             if abs(curr_v - prev_v) >= self.shift_threshold:
                 shift_detected = True
                 direction = "worsened" if curr_v < prev_v else "improved"
@@ -157,18 +169,34 @@ def _build_conversation_context(state: ConversationState) -> str:
     if state.shift_detected:
         parts.append(f"ALERT: {state.shift_description}")
 
-    emotion = state.current_emotion
-    if emotion in {"angry", "fearful", "disgusted"}:
+    # Behavioral guidance keys off the emotion's (valence, arousal) coordinates
+    # rather than a hardcoded label set, so every label in the taxonomy gets a
+    # guidance line instead of only the nine that were spelled out here. The
+    # thresholds reproduce the old label sets exactly for those nine: negative
+    # valence (< 0.4 — the analyzer's own "negative" cutoff in
+    # _estimate_valence) splits at arousal 0.5 into activated distress
+    # (angry / fearful / disgusted, and now frustrated / anxious / distressed /
+    # contempt) and deactivated distress (sad, and now disappointed / shame /
+    # guilt). The positive branch requires real activation (arousal >= 0.6),
+    # which is why `calm` and `neutral` still get no guidance line.
+    valence = _VALENCE_SCORE.get(state.current_emotion, _DEFAULT_VALENCE)
+    arousal = _AROUSAL_SCORE.get(state.current_emotion, _DEFAULT_AROUSAL)
+
+    if valence < 0.4 and arousal >= 0.5:
         parts.append(
             "Respond with empathy and de-escalation. Acknowledge the user's "
             "frustration before providing information."
         )
-    elif emotion == "sad":
+    elif valence < 0.4:
         parts.append(
             "Respond with warmth and patience. Avoid overly upbeat or "
             "transactional language."
         )
-    elif emotion in {"happy", "surprised"} and state.valence_trend != "worsening":
+    elif (
+        valence >= 0.5
+        and arousal >= 0.6
+        and state.valence_trend != "worsening"
+    ):
         parts.append(
             "User is in a positive state. Match their energy with a warm, "
             "engaged tone."

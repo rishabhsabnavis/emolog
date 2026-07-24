@@ -1,15 +1,14 @@
 """Test suite for emolog.
 
-SCAFFOLD ONLY — implement the 25 tests per CLAUDE.md "tests/test_emolog.py".
-Each test currently skips; remove the skip and fill in the body as you go.
+The 25 tests required by CLAUDE.md "tests/test_emolog.py", covering prosody
+extraction, arousal/valence mapping, context-string formatting, the tracker,
+middleware injection, and the benchmark harness. All are implemented; none
+skip.
 """
 
 import numpy as np
-import pytest
 
 SR = 16000
-
-TODO = pytest.mark.skip(reason="TODO: implement (scaffold)")
 
 
 # --------------------------------------------------------------------------- #
@@ -248,7 +247,6 @@ class TestMiddlewareInjection:
         assert all(isinstance(v, str) for v in hint.values())
 
     def test_tts_style_hint_no_state(self):
-        from emolog.tracker import ConversationTracker
         import emolog.middleware as mw
 
         # No process() call -> last_conversation_state is None -> defaults.
@@ -259,6 +257,46 @@ class TestMiddlewareInjection:
         assert hint["style"] == "neutral"
         assert hint["speaking_rate"] == "1.0"
         assert hint["stability"] == "0.5"
+
+
+class TestTaxonomyCoverage:
+    """Guards against the drift these tests were added to fix: the tracker and
+    TTS tables were hand-written label lists that fell behind the analyzer's
+    taxonomy, so labels the shipped backend can emit (`contempt`, and
+    `disgusted`'s arousal) silently scored as neutral."""
+
+    def test_tracker_scores_cover_whole_taxonomy(self):
+        from emolog.analyzer import _EMOTION_AXES
+        from emolog.tracker import _AROUSAL_SCORE, _VALENCE_SCORE
+
+        for label in _EMOTION_AXES:
+            assert label in _VALENCE_SCORE, f"{label} missing from _VALENCE_SCORE"
+            assert label in _AROUSAL_SCORE, f"{label} missing from _AROUSAL_SCORE"
+
+    def test_every_shipping_label_resolves_to_a_tts_style(self):
+        from emolog.analyzer import EMOTION_LABELS
+        from emolog.middleware import _TTS_STYLE, _style_for
+
+        for label in EMOTION_LABELS:
+            stability, style, rate, description = _style_for(label)
+            assert isinstance(style, str) and style
+            assert isinstance(description, str) and description
+        # `contempt` ships in EMOTION_LABELS but has no entry of its own; it
+        # must resolve through its family, not collapse to the neutral default.
+        assert _style_for("contempt") != _TTS_STYLE["neutral"]
+
+    def test_activated_distress_gets_de_escalation_guidance(self):
+        from emolog.tracker import ConversationTracker
+
+        # `frustrated` is in the taxonomy but was absent from the old tables,
+        # so a frustrated caller used to read as "mixed" with no guidance.
+        tracker = ConversationTracker()
+        for _ in range(3):
+            state = tracker.update(_make_result("frustrated"))
+
+        assert state.mean_valence < 0.4
+        assert "de-escalation" in state.conversation_context_string
+        assert "negative" in state.conversation_context_string
 
 
 class TestBenchmarkHarness:
